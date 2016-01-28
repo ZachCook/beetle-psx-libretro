@@ -1,0 +1,5 @@
+* Implement upscaled VRAM-to-VRAM copies
+* Fix savestates
+* Unbreak lightgun & friends (FrontIO::GPULineHook)
+* Fix 24bit mode
+* Fix interlaced mode (why is it broken in the first place?)
