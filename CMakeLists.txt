@@ -8,8 +8,19 @@ if (NOT LOG_LEVEL)
 	set_property(CACHE LOG_LEVEL PROPERTY STRINGS NoLog Error Warning Info Debug)
 endif()
 
+if (NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+		"Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel."
+		FORCE)
+	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS None Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
 string(TOUPPER ${LOG_LEVEL} LIGHTREC_LOG_LEVEL)
 add_definitions(-DLOG_LEVEL=${LIGHTREC_LOG_LEVEL}_L)
+
+if (CMAKE_COMPILER_IS_GNUCC)
+	add_compile_options(-fvisibility=hidden)
+endif()
 
 list(APPEND LIGHTREC_SOURCES
 	blockcache.c
@@ -45,7 +56,6 @@ if (ENABLE_THREADED_COMPILER)
 endif (ENABLE_THREADED_COMPILER)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-configure_file(config.h.cmakein config.h @ONLY)
 
 add_library(${PROJECT_NAME} ${LIGHTREC_SOURCES} ${LIGHTREC_HEADERS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -57,20 +67,26 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 	C_EXTENSIONS OFF
 )
 
-find_library(LIBOPCODES NAMES opcodes-multiarch opcodes)
-find_path(LIBOPCODES_INCLUDE_DIR dis-asm.h)
-
 find_library(LIBLIGHTNING lightning REQUIRED)
 find_path(LIBLIGHTNING_INCLUDE_DIR lightning.h REQUIRED)
 
-if (LIBOPCODES AND LIBOPCODES_INCLUDE_DIR)
-	add_definitions(-DENABLE_DISASSEMBLER=1)
+include_directories(${LIBLIGHTNING_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBLIGHTNING})
+
+if (LOG_LEVEL STREQUAL Debug)
+	find_library(LIBOPCODES NAMES opcodes-multiarch opcodes)
+	find_path(LIBOPCODES_INCLUDE_DIR dis-asm.h)
+
+	if (NOT LIBOPCODES OR NOT LIBOPCODES_INCLUDE_DIR)
+		message(SEND_ERROR "Debug log level requires libopcodes (from binutils) to be installed.")
+	endif ()
+
+	set(ENABLE_DISASSEMBLER ON)
 	include_directories(${LIBOPCODES_INCLUDE_DIR})
 	target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBOPCODES})
 endif()
 
-include_directories(${LIBLIGHTNING_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBLIGHTNING})
+configure_file(config.h.cmakein config.h @ONLY)
 
 include(GNUInstallDirs)
 install(TARGETS ${PROJECT_NAME}

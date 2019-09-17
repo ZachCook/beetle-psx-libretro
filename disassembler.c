@@ -12,7 +12,11 @@
  * Lesser General Public License for more details.
  */
 
+#include "config.h"
+
+#if ENABLE_DISASSEMBLER
 #include <dis-asm.h>
+#endif
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,7 +105,7 @@ unsigned int lightrec_cycles_of_opcode(const struct opcode *op)
 		return 0;
 }
 
-#if (LOG_LEVEL >= DEBUG_L)
+#if ENABLE_DISASSEMBLER
 void lightrec_print_disassembly(const struct block *block)
 {
 	struct disassemble_info info;
@@ -112,7 +116,7 @@ void lightrec_print_disassembly(const struct block *block)
 	init_disassemble_info(&info, stdout, (fprintf_ftype) fprintf);
 
 	info.buffer = (bfd_byte *) code;
-	info.buffer_vma = (bfd_vma) code;
+	info.buffer_vma = (bfd_vma)(uintptr_t) code;
 	info.buffer_length = block->length;
 	info.flavour = bfd_target_unknown_flavour;
 	info.arch = bfd_arch_mips;
@@ -120,9 +124,9 @@ void lightrec_print_disassembly(const struct block *block)
 	disassemble_init_for_target(&info);
 
 	for (i = 0; i < block->length; i += 4) {
-		void print_insn_little_mips(uintptr_t, struct disassemble_info *);
+		void print_insn_little_mips(bfd_vma, struct disassemble_info *);
 		putc('\t', stdout);
-		print_insn_little_mips((uintptr_t) code++, &info);
+		print_insn_little_mips((bfd_vma)(uintptr_t) code++, &info);
 		putc('\n', stdout);
 	}
 }
