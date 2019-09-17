@@ -935,7 +935,7 @@ void _jit_really_clear_state(jit_state_t *_jit)
     jit_free((jit_pointer_t *)&_jitc->data_info.ptr);
 #endif
 
-#if __powerpc64__ || __ia64__
+#if (__powerpc__ && _CALL_AIXDESC) || __ia64__
     jit_free((jit_pointer_t *)&_jitc->prolog.ptr);
 #endif
 
@@ -2157,6 +2157,10 @@ _jit_setup(jit_state_t *_jit, jit_block_t *block)
     unsigned long	 value;
 
     jit_regset_set_mask(&regmask, _jitc->reglen);
+    for (value = 0; value < _jitc->reglen; ++value)
+	if (!(jit_class(_rvs[value].spec) & (jit_class_gpr|jit_class_fpr)))
+	    jit_regset_clrbit(&regmask, value);
+
     for (node = block->label->next; node; node = node->next) {
 	switch (node->code) {
 	    case jit_code_label:	case jit_code_prolog:
@@ -3450,7 +3454,7 @@ _patch_register(jit_state_t *_jit, jit_node_t *node, jit_node_t *link,
 #  include "jit_mips.c"
 #elif defined(__arm__)
 #  include "jit_arm.c"
-#elif defined(__ppc__) || defined(__powerpc__)
+#elif defined(__powerpc__)
 #  include "jit_ppc.c"
 #elif defined(__sparc__)
 #  include "jit_sparc.c"
