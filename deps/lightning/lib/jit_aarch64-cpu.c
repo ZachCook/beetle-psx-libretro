@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2017  Free Software Foundation, Inc.
+ * Copyright (C) 2013-2019  Free Software Foundation, Inc.
  *
  * This file is part of GNU lightning.
  *
@@ -2006,7 +2006,7 @@ _bcci(jit_state_t *_jit, jit_int32_t cc,
     jit_word_t		iS =  in >> 12;
     if (      i1 >= 0 && i1 <= 0xfff)
 	CMPI   (r0, i1);
-    else if ((is << 12) == i0 && is >= 0 && is <= 0xfff)
+    else if ((is << 12) == i1 && is >= 0 && is <= 0xfff)
 	CMPI_12(r0, is);
     else if ( in >= 0 && in <= 0xfff)
 	CMNI   (r0, in);
@@ -2117,7 +2117,7 @@ _bmxi(jit_state_t *_jit, jit_int32_t cc,
 	TSTI(r0, imm);
     else {
 	reg = jit_get_reg(jit_class_gpr);
-	movi(rn(reg), i0);
+	movi(rn(reg), i1);
 	TST(r0, rn(reg));
 	jit_unget_reg(reg);
     }
