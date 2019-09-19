@@ -15,10 +15,13 @@
 #ifndef __LIGHTREC_PRIVATE_H__
 #define __LIGHTREC_PRIVATE_H__
 
+#include "config.h"
+#include "disassembler.h"
 #include "lightrec.h"
 
-#define __weak __attribute__((weak))
-#define __packed __attribute__((packed))
+#if ENABLE_THREADED_COMPILER
+#include <stdatomic.h>
+#endif
 
 #define ARRAY_SIZE(x) (sizeof(x) ? sizeof(x) / sizeof((x)[0]) : 0)
 #define BIT(x) (1 << (x))
@@ -60,19 +63,21 @@ struct block {
 	struct lightrec_state *state;
 	struct opcode *opcode_list;
 	void (*function)(void);
-	const u32 *code;
 	u32 pc, kunseg_pc;
+#if ENABLE_THREADED_COMPILER
+	atomic_flag op_list_freed;
+#endif
+	u32 flags;
 	unsigned int cycles;
-	unsigned int length;
+	unsigned int code_size;
 	const struct lightrec_mem_map *map;
 	struct {
 		struct block *sle_next;
 	} next;
-	uintptr_t flags;
 };
 
 struct lightrec_op_data {
-	struct opcode *op;
+	union code op;
 	u32 addr;
 	u32 data;
 };
@@ -96,11 +101,12 @@ struct lightrec_state {
 	const struct lightrec_mem_map *maps;
 	uintptr_t offset_ram, offset_bios, offset_scratch;
 	_Bool mirrors_mapped;
+	unsigned int lut_size;
 	void *code_lut[];
 };
 
-u32 lightrec_rw(struct lightrec_state *state,
-		struct opcode *op, u32 addr, u32 data);
+u32 lightrec_rw(struct lightrec_state *state, union code op,
+		u32 addr, u32 data, u32 *flags);
 
 void lightrec_free_block(struct block *block);
 
@@ -114,9 +120,10 @@ static inline u32 kunseg(u32 addr)
 		return addr;
 }
 
-void lightrec_mtc(struct lightrec_state *state,
-		  const struct opcode *op, u32 data);
-u32 lightrec_mfc(struct lightrec_state *state, const struct opcode *op);
+void lightrec_mtc(struct lightrec_state *state, union code op, u32 data);
+u32 lightrec_mfc(struct lightrec_state *state, union code op);
+
+union code lightrec_read_opcode(struct lightrec_state *state, u32 pc);
 
 struct block * lightrec_get_block(struct lightrec_state *state, u32 pc);
 int lightrec_compile_block(struct block *block);

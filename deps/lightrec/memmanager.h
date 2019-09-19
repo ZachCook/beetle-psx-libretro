@@ -12,17 +12,16 @@
  * Lesser General Public License for more details.
  */
 
-#ifndef __LIGHTREC_RECOMPILER_H__
-#define __LIGHTREC_RECOMPILER_H__
+#ifndef __MEMMANAGER_H__
+#define __MEMMANAGER_H__
 
-struct block;
-struct recompiler;
+#include "lightrec.h"
 
-struct recompiler *lightrec_recompiler_init(void);
-void lightrec_free_recompiler(struct recompiler *rec);
-int lightrec_recompiler_add(struct recompiler *rec, struct block *block);
-void lightrec_recompiler_remove(struct recompiler *rec, struct block *block);
+void * lightrec_malloc(enum mem_type type, unsigned int len);
+void * lightrec_calloc(enum mem_type type, unsigned int len);
+void lightrec_free(enum mem_type type, unsigned int len, void *ptr);
 
-void * lightrec_recompiler_run_first_pass(struct block *block, u32 *pc);
+void lightrec_register(enum mem_type type, unsigned int len);
+void lightrec_unregister(enum mem_type type, unsigned int len);
 
-#endif /* __LIGHTREC_RECOMPILER_H__ */
+#endif /* __MEMMANAGER_H__ */

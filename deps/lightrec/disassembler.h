@@ -16,12 +16,16 @@
 #define __DISASSEMBLER_H__
 
 #include "debug.h"
-#include "lightrec-private.h"
+#include "lightrec.h"
 
 #include <sys/queue.h>
 
+#define __packed __attribute__((packed))
+
 #define LIGHTREC_SKIP_PC_UPDATE	(1 << 0)
 #define LIGHTREC_DIRECT_IO	(1 << 1)
+
+struct block;
 
 enum standard_opcodes {
 	OP_SPECIAL		= 0x00,
@@ -159,8 +163,20 @@ struct opcode_j {
 #endif
 } __packed;
 
+union code {
+	/* Keep in sync with struct opcode */
+	u32 opcode;
+	struct opcode_r r;
+	struct opcode_i i;
+	struct opcode_j j;
+};
+
 struct opcode {
+	/* Keep this union at the first position */
 	union {
+		union code c;
+
+		/* Keep in sync with union code */
 		u32 opcode;
 		struct opcode_r r;
 		struct opcode_i i;
@@ -172,11 +188,14 @@ struct opcode {
 
 SLIST_HEAD(opcode_list_head, opcode);
 
+#define code_to_opcode(code) ((struct opcode *)&(code))
+
 struct opcode * lightrec_disassemble(const u32 *src, unsigned int *len);
 void lightrec_free_opcode_list(struct opcode *list);
 
 unsigned int lightrec_cycles_of_opcode(const struct opcode *op);
 
-void lightrec_print_disassembly(const struct block *block);
+void lightrec_print_disassembly(const struct block *block,
+				const u32 *code, unsigned int length);
 
 #endif /* __DISASSEMBLER_H__ */
