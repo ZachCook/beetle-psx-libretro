@@ -13,9 +13,12 @@
  */
 
 #include "debug.h"
+#include "interpreter.h"
 #include "lightrec-private.h"
+#include "memmanager.h"
 
 #include <errno.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/queue.h>
@@ -56,7 +59,7 @@ static void lightrec_compile_list(struct recompiler *rec)
 		mtx_lock(&rec->mutex);
 
 		SLIST_REMOVE(&rec->list, next, block_rec, next);
-		free(next);
+		lightrec_free(MEM_FOR_LIGHTREC, sizeof(*next), next);
 		cnd_signal(&rec->cond);
 	}
 
@@ -89,7 +92,7 @@ struct recompiler *lightrec_recompiler_init(void)
 	struct recompiler *rec;
 	int ret;
 
-	rec = malloc(sizeof(*rec));
+	rec = lightrec_malloc(MEM_FOR_LIGHTREC, sizeof(*rec));
 	if (!rec) {
 		ERROR("Cannot create recompiler: Out of memory\n");
 		return NULL;
@@ -124,7 +127,7 @@ err_mtx_destroy:
 err_cnd_destroy:
 	cnd_destroy(&rec->cond);
 err_free_rec:
-	free(rec);
+	lightrec_free(MEM_FOR_LIGHTREC, sizeof(*rec), rec);
 	return NULL;
 }
 
@@ -140,7 +143,7 @@ void lightrec_free_recompiler(struct recompiler *rec)
 
 	mtx_destroy(&rec->mutex);
 	cnd_destroy(&rec->cond);
-	free(rec);
+	lightrec_free(MEM_FOR_LIGHTREC, sizeof(*rec), rec);
 }
 
 int lightrec_recompiler_add(struct recompiler *rec, struct block *block)
@@ -156,7 +159,14 @@ int lightrec_recompiler_add(struct recompiler *rec, struct block *block)
 		}
 	}
 
-	block_rec = malloc(sizeof(*block_rec));
+	/* By the time this function was called, the block has been recompiled
+	 * and ins't in the wait list anymore. Just return here. */
+	if (block->function) {
+		mtx_unlock(&rec->mutex);
+		return 0;
+	}
+
+	block_rec = lightrec_malloc(MEM_FOR_LIGHTREC, sizeof(*block_rec));
 	if (!block_rec) {
 		mtx_unlock(&rec->mutex);
 		return -ENOMEM;
@@ -193,7 +203,8 @@ void lightrec_recompiler_remove(struct recompiler *rec, struct block *block)
 				 * from the list */
 				SLIST_REMOVE(&rec->list, block_rec,
 					     block_rec, next);
-				free(block_rec);
+				lightrec_free(MEM_FOR_LIGHTREC,
+					      sizeof(*block_rec), block_rec);
 			}
 
 			break;
@@ -201,4 +212,39 @@ void lightrec_recompiler_remove(struct recompiler *rec, struct block *block)
 	}
 
 	mtx_unlock(&rec->mutex);
+}
+
+void * lightrec_recompiler_run_first_pass(struct block *block, u32 *pc)
+{
+	bool freed;
+
+	/* Mark the opcode list as freed, so that the threaded compiler won't
+	 * free it while we're using it in the interpreter. */
+	freed = atomic_flag_test_and_set(&block->op_list_freed);
+
+	if (likely(block->function)) {
+		if (!freed) {
+			/* The block was already compiled but the opcode list
+			 * didn't get freed yet - do it now */
+			lightrec_free_opcode_list(block->opcode_list);
+			block->opcode_list = NULL;
+		}
+
+		return block->function;
+	}
+
+	/* Block wasn't compiled yet - run the interpreter */
+	*pc = lightrec_emulate_block(block);
+
+	atomic_flag_clear(&block->op_list_freed);
+
+	/* The block got compiled while the interpreter was running.
+	 * We can free the opcode list now. */
+	if (block->function &&
+	    !atomic_flag_test_and_set(&block->op_list_freed)) {
+		lightrec_free_opcode_list(block->opcode_list);
+		block->opcode_list = NULL;
+	}
+
+	return NULL;
 }

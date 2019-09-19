@@ -23,7 +23,8 @@
 
 #include "debug.h"
 #include "disassembler.h"
-#include "lightrec.h"
+#include "lightrec-private.h"
+#include "memmanager.h"
 
 static bool is_unconditional_jump(const struct opcode *op)
 {
@@ -45,15 +46,18 @@ static bool is_unconditional_jump(const struct opcode *op)
 
 static bool is_syscall(const struct opcode *op)
 {
-	return op->i.op == OP_SPECIAL && (op->r.op == OP_SPECIAL_SYSCALL ||
-			op->r.op == OP_SPECIAL_BREAK);
+	return (op->i.op == OP_SPECIAL && (op->r.op == OP_SPECIAL_SYSCALL ||
+					   op->r.op == OP_SPECIAL_BREAK)) ||
+		(op->i.op == OP_CP0 && (op->r.rs == OP_CP0_MTC0 ||
+					op->r.rs == OP_CP0_CTC0) &&
+		 (op->r.rd == 12 || op->r.rd == 13));
 }
 
 void lightrec_free_opcode_list(struct opcode *list)
 {
 	while (list) {
 		struct opcode *next = SLIST_NEXT(list, next);
-		free(list);
+		lightrec_free(MEM_FOR_IR, sizeof(*list), list);
 		list = next;
 	}
 }
@@ -66,7 +70,7 @@ struct opcode * lightrec_disassemble(const u32 *src, unsigned int *len)
 	unsigned int i;
 
 	for (i = 0, last = NULL; ; i += sizeof(u32), last = curr) {
-		curr = calloc(1, sizeof(*curr));
+		curr = lightrec_calloc(MEM_FOR_IR, sizeof(*curr));
 		if (!curr) {
 			ERROR("Unable to allocate memory\n");
 			lightrec_free_opcode_list(SLIST_FIRST(&head));
@@ -106,10 +110,10 @@ unsigned int lightrec_cycles_of_opcode(const struct opcode *op)
 }
 
 #if ENABLE_DISASSEMBLER
-void lightrec_print_disassembly(const struct block *block)
+void lightrec_print_disassembly(const struct block *block,
+				const u32 *code, unsigned int length)
 {
 	struct disassemble_info info;
-	const u32 *code = block->code;
 	unsigned int i;
 
 	memset(&info, 0, sizeof(info));
@@ -117,13 +121,13 @@ void lightrec_print_disassembly(const struct block *block)
 
 	info.buffer = (bfd_byte *) code;
 	info.buffer_vma = (bfd_vma)(uintptr_t) code;
-	info.buffer_length = block->length;
+	info.buffer_length = length;
 	info.flavour = bfd_target_unknown_flavour;
 	info.arch = bfd_arch_mips;
 	info.mach = bfd_mach_mips3000;
 	disassemble_init_for_target(&info);
 
-	for (i = 0; i < block->length; i += 4) {
+	for (i = 0; i < length; i += 4) {
 		void print_insn_little_mips(bfd_vma, struct disassemble_info *);
 		putc('\t', stdout);
 		print_insn_little_mips((bfd_vma)(uintptr_t) code++, &info);

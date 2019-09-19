@@ -44,7 +44,6 @@ typedef int32_t s32;
 typedef int16_t s16;
 typedef int8_t  s8;
 
-struct opcode;
 struct lightrec_state;
 struct lightrec_mem_map;
 
@@ -67,13 +66,20 @@ enum psx_map {
 	PSX_MAP_MIRROR3,
 };
 
+enum mem_type {
+	MEM_FOR_CODE,
+	MEM_FOR_IR,
+	MEM_FOR_LIGHTREC,
+	MEM_TYPE_END,
+};
+
 struct lightrec_mem_map_ops {
-	void (*sb)(struct lightrec_state *, const struct opcode *, u32, u8);
-	void (*sh)(struct lightrec_state *, const struct opcode *, u32, u16);
-	void (*sw)(struct lightrec_state *, const struct opcode *, u32, u32);
-	u8 (*lb)(struct lightrec_state *, const struct opcode *, u32);
-	u16 (*lh)(struct lightrec_state *, const struct opcode *, u32);
-	u32 (*lw)(struct lightrec_state *, const struct opcode *, u32);
+	void (*sb)(struct lightrec_state *, u32 addr, u8 data);
+	void (*sh)(struct lightrec_state *, u32 addr, u16 data);
+	void (*sw)(struct lightrec_state *, u32 addr, u32 data);
+	u8 (*lb)(struct lightrec_state *, u32 addr);
+	u16 (*lh)(struct lightrec_state *, u32 addr);
+	u32 (*lw)(struct lightrec_state *, u32 addr);
 };
 
 struct lightrec_mem_map {
@@ -123,6 +129,9 @@ __api u32 lightrec_current_cycle_count(const struct lightrec_state *state);
 __api void lightrec_reset_cycle_count(struct lightrec_state *state, u32 cycles);
 __api void lightrec_set_target_cycle_count(struct lightrec_state *state,
 					   u32 cycles);
+
+__api unsigned int lightrec_get_mem_usage(enum mem_type type);
+__api unsigned int lightrec_get_total_mem_usage(void);
 
 #ifdef __cplusplus
 };
