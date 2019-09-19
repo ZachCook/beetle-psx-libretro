@@ -1,5 +1,5 @@
 dnl
-dnl Copyright 2000, 2001, 2002, 2012-2017 Free Software Foundation, Inc.
+dnl Copyright 2000, 2001, 2002, 2012-2019 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GNU lightning.
 dnl
@@ -15,7 +15,7 @@ dnl License for more details.
 dnl
 
 AC_PREREQ(2.57)
-AC_INIT([GNU lightning], 2.1.2, pcpa@gnu.org, lightning)
+AC_INIT([GNU lightning], 2.1.3, pcpa@gnu.org, lightning)
 AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE([dist-bzip2])
