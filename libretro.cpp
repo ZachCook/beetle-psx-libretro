@@ -1571,7 +1571,9 @@ int lightrec_init_mmap()
 	ioctl(memfd, ASHMEM_SET_NAME, "lightrec_memfd");
 	ioctl(memfd, ASHMEM_SET_SIZE, 0x280400);
 #else
-	int memfd = shm_open("/lightrec_memfd",
+	char shm_name[30];
+	sprintf(shm_name, "/lightrec_memfd_%d", getpid());
+	int memfd = shm_open(shm_name,
 			 O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (memfd < 0) {
 		err = -errno;
