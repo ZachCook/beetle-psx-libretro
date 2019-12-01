@@ -84,6 +84,9 @@ bool psx_dynarec;
 uint8 *psx_mem;
 uint8 *psx_bios;
 uint8 *psx_scratch;
+#if defined(HAVE_SHM) && !defined(HAVE_ASHMEM)
+char shm_name[30];
+#endif
 #endif
 
 #ifdef HAVE_ASHMEM
@@ -1571,7 +1574,6 @@ int lightrec_init_mmap()
 	ioctl(memfd, ASHMEM_SET_NAME, "lightrec_memfd");
 	ioctl(memfd, ASHMEM_SET_SIZE, 0x280400);
 #else
-	char shm_name[30];
 	sprintf(shm_name, "/lightrec_memfd_%d", getpid());
 	int memfd = shm_open(shm_name,
 			 O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
@@ -2242,6 +2244,9 @@ static void Cleanup(void)
    ScratchRAM = NULL;
    BIOSROM = NULL;
    lightrec_free_mmap();
+#if defined(HAVE_SHM) && !defined(HAVE_ASHMEM)
+   shm_unlink(shm_name);
+#endif
 #else
    if(MainRAM)
       delete MainRAM;
