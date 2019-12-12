@@ -19,6 +19,7 @@
 #include "rsx_intf.h"
 #include "rsx.h"
 #include "../libretro_cbs.h"
+#include "../beetle_psx_globals.h"
 
 
 #ifdef RSX_DUMP
@@ -3083,7 +3084,7 @@ static unsigned msaa = 1;
 static bool mdec_yuv;
 static vector<function<void ()>> defer;
 static dither_mode dither_mode = DITHER_NATIVE;
-static bool crop_overscan;
+static bool crop_overscan_vk;
 static int image_offset_cycles;
 static int initial_scanline;
 static int last_scanline;
@@ -3293,9 +3294,9 @@ static void rsx_vulkan_refresh_variables(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
       if (!strcmp(var.value, "enabled"))
-         crop_overscan = true;
+         crop_overscan_vk = true;
       else
-         crop_overscan = false;
+         crop_overscan_vk = false;
    }
 
    var.key = BEETLE_OPT(image_offset_cycles);
@@ -3356,7 +3357,7 @@ static void rsx_vulkan_finalize_frame(const void *fb, unsigned width,
 {
    renderer->set_adaptive_smoothing(adaptive_smoothing);
    renderer->set_dither_native_resolution(dither_mode == DITHER_NATIVE);
-   renderer->set_horizontal_overscan_cropping(crop_overscan);
+   renderer->set_horizontal_overscan_cropping(crop_overscan_vk);
    renderer->set_horizontal_offset_cycles(image_offset_cycles);
    renderer->set_visible_scanlines(initial_scanline, last_scanline, initial_scanline_pal, last_scanline_pal);
 
@@ -3721,17 +3722,26 @@ bool rsx_intf_open(bool is_pal, bool force_software)
          software_selected = true;
    }
    else
+   {
       /* If 'BEETLE_OPT(renderer)' option is not found, then
        * we are running in software mode */
       software_selected = true;
+   }
 
    if (!software_selected)
    {
-      unsigned preferred; // This will be set to a const value if GET_PREFERRED_HW_RENDER is not supported by frontend
-      if (!environ_cb(RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER, &preferred)) preferred = 0xFFFFFFFF;
+      unsigned preferred = 0; // This will be set to RETRO_HW_CONTEXT_DUMMY if GET_PREFERRED_HW_RENDER is not supported by frontend
+      if (!environ_cb(RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER, &preferred))
+      {
+         preferred = RETRO_HW_CONTEXT_DUMMY;
+      }
+      /* If GET_PREFERRED_HW_RENDER is not supported by frontend, then we just go
+       * down the list attempting to open a hardware renderer until we get one */
 
 #if defined(HAVE_VULKAN)
-      if ((preferred == 0xFFFFFFFF || (preferred != RETRO_HW_CONTEXT_OPENGL_CORE && preferred != RETRO_HW_CONTEXT_OPENGL)) && rsx_vulkan_open(is_pal))
+      if ((preferred == RETRO_HW_CONTEXT_DUMMY ||
+           preferred == RETRO_HW_CONTEXT_VULKAN)
+          && rsx_vulkan_open(is_pal))
       {
          rsx_type       = RSX_VULKAN;
          vk_initialized = true;
@@ -3740,20 +3750,29 @@ bool rsx_intf_open(bool is_pal, bool force_software)
 #endif
 
 #if defined(HAVE_OPENGL) || defined(HAVE_OPENGLES)
-      if (rsx_gl_open(is_pal))
+      if ((preferred == RETRO_HW_CONTEXT_DUMMY ||
+           preferred == RETRO_HW_CONTEXT_OPENGL ||
+           preferred == RETRO_HW_CONTEXT_OPENGL_CORE)
+          && rsx_gl_open(is_pal))
       {
          rsx_type       = RSX_OPENGL;
          gl_initialized = true;
          goto end;
       }
 #endif
+
+      if (preferred == RETRO_HW_CONTEXT_DUMMY)
+         MDFN_DispMessage("No hardware renderers could be opened. Falling back to software renderer.");
+      else
+         MDFN_DispMessage("Unable to find or open hardware renderer for frontend preferred hardware context. Falling back to software renderer.");
    }
 
+   // rsx_soft_open(is_pal) always returns true
    if (rsx_soft_open(is_pal))
+   {
+      rsx_type = RSX_SOFTWARE;
       goto end;
-
-   rsx_type          = RSX_SOFTWARE;
-   return rsx_intf_open(is_pal, force_software);
+   }
 
 end:
 #if defined(RSX_DUMP)
