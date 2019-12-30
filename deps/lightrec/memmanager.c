@@ -13,9 +13,13 @@
  */
 
 #include "config.h"
+#include "lightrec-private.h"
 #include "memmanager.h"
 
 #include <stdlib.h>
+#if ENABLE_TINYMM
+#include <tinymm.h>
+#endif
 
 #ifdef ENABLE_THREADED_COMPILER
 #include <stdatomic.h>
@@ -67,11 +71,17 @@ unsigned int lightrec_get_total_mem_usage(void)
 	return count;
 }
 
-void * lightrec_malloc(enum mem_type type, unsigned int len)
+void * lightrec_malloc(struct lightrec_state *state,
+		       enum mem_type type, unsigned int len)
 {
 	void *ptr;
 
-	ptr = malloc(len);
+#if ENABLE_TINYMM
+	if (type == MEM_FOR_IR)
+		ptr = tinymm_malloc(state->tinymm, len);
+	else
+#endif
+		ptr = malloc(len);
 	if (!ptr)
 		return NULL;
 
@@ -80,11 +90,17 @@ void * lightrec_malloc(enum mem_type type, unsigned int len)
 	return ptr;
 }
 
-void * lightrec_calloc(enum mem_type type, unsigned int len)
+void * lightrec_calloc(struct lightrec_state *state,
+		       enum mem_type type, unsigned int len)
 {
 	void *ptr;
 
-	ptr = calloc(1, len);
+#if ENABLE_TINYMM
+	if (type == MEM_FOR_IR)
+		ptr = tinymm_zalloc(state->tinymm, len);
+	else
+#endif
+		ptr = calloc(1, len);
 	if (!ptr)
 		return NULL;
 
@@ -93,10 +109,16 @@ void * lightrec_calloc(enum mem_type type, unsigned int len)
 	return ptr;
 }
 
-void lightrec_free(enum mem_type type, unsigned int len, void *ptr)
+void lightrec_free(struct lightrec_state *state,
+		   enum mem_type type, unsigned int len, void *ptr)
 {
 	lightrec_unregister(type, len);
-	free(ptr);
+#if ENABLE_TINYMM
+	if (type == MEM_FOR_IR)
+		tinymm_free(state->tinymm, ptr);
+	else
+#endif
+		free(ptr);
 }
 
 float lightrec_get_average_ipi(void)
