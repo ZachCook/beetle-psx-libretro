@@ -3216,8 +3216,6 @@ static void cop2_op(struct lightrec_state *state, u32 func){
 void PS_CPU::reset_target_cycle_count(struct lightrec_state *state, pscpu_timestamp_t timestamp){
 	if (timestamp >= next_event_ts)
 		lightrec_set_exit_flags(state, LIGHTREC_EXIT_CHECK_INTERRUPT);
-	else
-		lightrec_set_target_cycle_count(state, next_event_ts);
 }
 
 void PS_CPU::hw_write_byte(struct lightrec_state *state,
@@ -3462,8 +3460,10 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 		lightrec_restore_registers(lightrec_state, GPR);
 		lightrec_reset_cycle_count(lightrec_state, timestamp);
 
-		PC = lightrec_execute(lightrec_state,
-				PC, next_event_ts);
+//		PC = lightrec_execute(lightrec_state,
+//				PC, next_event_ts);
+//		PC = lightrec_run_interpreter(lightrec_state,PC);
+		PC = lightrec_execute_one(lightrec_state,PC);
 
 		timestamp = lightrec_current_cycle_count(
 				lightrec_state);
@@ -3481,14 +3481,14 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 		if (flags & LIGHTREC_EXIT_SYSCALL)
 			PC = Exception(EXCEPTION_SYSCALL, PC, PC, 0);
 
-		if ((CP0.SR & CP0.CAUSE & 0xFF00) && (CP0.SR & 1)) {
-			/* Handle software interrupts */
-			PC = Exception(EXCEPTION_INT, PC, PC, 0);
-		}
-
 		if (lightrec_debug && timestamp >= lightrec_begin_cycles
 			&& PC != old_pc){
 			print_for_big_ass_debugger(timestamp, PC);
+		}
+
+		if ((CP0.SR & CP0.CAUSE & 0xFF00) && (CP0.SR & 1)) {
+			/* Handle software interrupts */
+			PC = Exception(EXCEPTION_INT, PC, PC, 0);
 		}
 	} while(MDFN_LIKELY(PSX_EventHandler(timestamp)));
 
