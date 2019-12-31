@@ -77,6 +77,7 @@ endif
 
 ifeq ($(LIGHTREC_DEBUG), 1)
    FLAGS += -DLIGHTREC_DEBUG
+   DEBUG = 1
 endif
 
 # Unix
