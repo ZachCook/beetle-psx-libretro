@@ -6,6 +6,7 @@ HAVE_JIT = 0
 HAVE_CHD = 1
 HAVE_CDROM = 0
 HAVE_LIGHTREC = 1
+LIGHTREC_DEBUG = 0
 
 CORE_DIR := .
 HAVE_GRIFFIN = 0
@@ -74,6 +75,9 @@ ifeq ($(SET_HAVE_HW), 1)
    TARGET_NAME := mednafen_psx_hw
 endif
 
+ifeq ($(LIGHTREC_DEBUG), 1)
+   FLAGS += -DLIGHTREC_DEBUG
+endif
 
 # Unix
 ifneq (,$(findstring unix,$(platform)))

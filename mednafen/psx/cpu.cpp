@@ -2662,7 +2662,7 @@ pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
    //printf("\n");
   }
   if (timestamp >= 0 && PC != old_pc){
-#if defined(HAVE_LIGHTREC) && defined(DEBUG)
+#if defined(HAVE_LIGHTREC) && defined(LIGHTREC_DEBUG)
      print_for_big_ass_debugger(timestamp, PC);
 #endif
   }
@@ -3061,7 +3061,7 @@ static struct lightrec_state *lightrec_state;
 static char *name = (char*) "beetle_psx_libretro";
 
 bool use_lightrec_interpreter = false;
-#ifdef DEBUG
+#ifdef LIGHTREC_DEBUG
 bool lightrec_debug = true;
 #else
 bool lightrec_debug = false;
