@@ -83,7 +83,7 @@ static void lightrec_invalidate_map(struct lightrec_state *state,
 		const struct lightrec_mem_map *map, u32 addr)
 {
 	if (map == &state->maps[PSX_MAP_KERNEL_USER_RAM])
-		state->code_lut[addr >> 2] = NULL;
+		state->code_lut[lut_offset(addr)] = NULL;
 }
 
 static const struct lightrec_mem_map *
@@ -367,18 +367,14 @@ struct block * lightrec_get_block(struct lightrec_state *state, u32 pc)
 
 static void * get_next_block_func(struct lightrec_state *state, u32 pc)
 {
-	const struct lightrec_mem_map *map;
 	struct block *block;
 	bool should_recompile;
 	void *func;
 
 	for (;;) {
-		map = lightrec_get_map(state, kunseg(pc));
-		if (map == &state->maps[PSX_MAP_KERNEL_USER_RAM]) {
-			func = state->code_lut[kunseg(pc) >> 2];
-			if (func && func != state->get_next_block)
-				return func;
-		}
+		func = state->code_lut[lut_offset(pc)];
+		if (func && func != state->get_next_block)
+			return func;
 
 		block = lightrec_get_block(state, pc);
 
@@ -751,7 +747,6 @@ static struct block * lightrec_precompile_block(struct lightrec_state *state,
 	}
 
 	block->pc = pc;
-	block->kunseg_pc = map->pc + addr;
 	block->state = state;
 	block->_jit = NULL;
 	block->function = NULL;
@@ -901,8 +896,7 @@ int lightrec_compile_block(struct block *block)
 	block->function = jit_emit();
 
 	/* Add compiled function to the LUT */
-	if (block->map == &block->state->maps[PSX_MAP_KERNEL_USER_RAM])
-		block->state->code_lut[block->kunseg_pc >> 2] = block->function;
+	state->code_lut[lut_offset(block->pc)] = block->function;
 
 	jit_get_code(&code_size);
 	lightrec_register(MEM_FOR_CODE, code_size);
@@ -989,7 +983,6 @@ struct lightrec_state * lightrec_init(char *argv0,
 				      const struct lightrec_ops *ops)
 {
 	struct lightrec_state *state;
-	unsigned int lut_size;
 
 	/* Sanity-check ops */
 	if (!ops ||
@@ -1003,16 +996,13 @@ struct lightrec_state * lightrec_init(char *argv0,
 
 	init_jit(argv0);
 
-	lut_size = map[PSX_MAP_KERNEL_USER_RAM].length >> 2;
-
-	state = calloc(1, sizeof(*state) + sizeof(*state->code_lut) * lut_size);
+	state = calloc(1, sizeof(*state) +
+		       sizeof(*state->code_lut) * CODE_LUT_SIZE);
 	if (!state)
 		goto err_finish_jit;
 
 	lightrec_register(MEM_FOR_LIGHTREC, sizeof(*state) +
-			  sizeof(*state->code_lut) * lut_size);
-
-	state->lut_size = lut_size;
+			  sizeof(*state->code_lut) * CODE_LUT_SIZE);
 
 #if ENABLE_TINYMM
 	state->tinymm = tinymm_init(malloc, free, 4096);
@@ -1133,7 +1123,7 @@ err_free_tinymm:
 err_free_state:
 #endif
 	lightrec_unregister(MEM_FOR_LIGHTREC, sizeof(*state) +
-			    sizeof(*state->code_lut) * state->lut_size);
+			    sizeof(*state->code_lut) * CODE_LUT_SIZE);
 	free(state);
 err_finish_jit:
 	finish_jit();
@@ -1162,7 +1152,7 @@ void lightrec_destroy(struct lightrec_state *state)
 	tinymm_shutdown(state->tinymm);
 #endif
 	lightrec_unregister(MEM_FOR_LIGHTREC, sizeof(*state) +
-			    sizeof(*state->code_lut) * state->lut_size);
+			    sizeof(*state->code_lut) * CODE_LUT_SIZE);
 	free(state);
 }
 
@@ -1190,7 +1180,7 @@ void lightrec_invalidate(struct lightrec_state *state, u32 addr, u32 len)
 
 void lightrec_invalidate_all(struct lightrec_state *state)
 {
-	memset(state->code_lut, 0,
+	memset(state->code_lut, 0, sizeof(*state->code_lut) *
 	       state->maps[PSX_MAP_KERNEL_USER_RAM].length >> 2);
 }
 

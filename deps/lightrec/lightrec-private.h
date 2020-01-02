@@ -51,6 +51,11 @@
 #define BLOCK_SHOULD_RECOMPILE	BIT(1)
 #define BLOCK_FULLY_TAGGED	BIT(2)
 
+#define RAM_SIZE	0x200000
+#define BIOS_SIZE	0x80000
+
+#define CODE_LUT_SIZE	((RAM_SIZE + BIOS_SIZE) >> 2)
+
 /* Definition of jit_state_t (avoids inclusion of <lightning.h>) */
 struct jit_node;
 struct jit_state;
@@ -67,7 +72,7 @@ struct block {
 	struct lightrec_state *state;
 	struct opcode *opcode_list;
 	void (*function)(void);
-	u32 pc, kunseg_pc;
+	u32 pc;
 #if ENABLE_THREADED_COMPILER
 	atomic_flag op_list_freed;
 #endif
@@ -117,7 +122,6 @@ struct lightrec_state {
 	const struct lightrec_mem_map *maps;
 	uintptr_t offset_ram, offset_bios, offset_scratch;
 	_Bool mirrors_mapped;
-	unsigned int lut_size;
 	void *code_lut[];
 };
 
@@ -130,10 +134,16 @@ static inline u32 kunseg(u32 addr)
 {
 	if (unlikely(addr >= 0xa0000000))
 		return addr - 0xa0000000;
-	else if (addr >= 0x80000000)
-		return addr - 0x80000000;
 	else
-		return addr;
+		return addr &~ 0x80000000;
+}
+
+static inline u32 lut_offset(u32 pc)
+{
+	if (pc & BIT(28))
+		return ((pc & (BIOS_SIZE - 1)) + RAM_SIZE) >> 2; // BIOS
+	else
+		return (pc & (RAM_SIZE - 1)) >> 2; // RAM
 }
 
 void lightrec_mtc(struct lightrec_state *state, union code op, u32 data);
