@@ -281,11 +281,13 @@ struct retro_core_option_definition option_defs_us[] = {
       "CPU Dynarec",
       "Dynamically recompile CPU instructions to native instructions. Much faster than interpreter, but CPU timing is less accurate, and may have bugs.",
       {
-         { "enabled", NULL },
-         { "disabled",  NULL },
+         { "disabled", "Disabled (Beetle Interpreter)" },
+         { "execute",  "Max Performance" },
+         { "execute_one",  "Cycle Timing Check" },
+         { "run_interpreter", "Lightrec Interpreter" },
          { NULL, NULL },
       },
-      "enabled"
+      "execute"
    },
 #endif
    {

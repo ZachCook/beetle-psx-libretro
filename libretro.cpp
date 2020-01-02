@@ -80,7 +80,7 @@ bool cd_warned_slow = false;
 int64 cd_slow_timeout = 8000; // microseconds
 
 #ifdef HAVE_LIGHTREC
-bool psx_dynarec;
+enum DYNAREC psx_dynarec;
 uint8 *psx_mem;
 uint8 *psx_bios;
 uint8 *psx_scratch;
@@ -3032,13 +3032,17 @@ static void check_variables(bool startup)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
-      if (strcmp(var.value, "enabled") == 0)
-         psx_dynarec = true;
+      if (strcmp(var.value, "execute") == 0)
+         psx_dynarec = DYNAREC_EXECUTE;
+      else if (strcmp(var.value, "execute_one") == 0)
+         psx_dynarec = DYNAREC_EXECUTE_ONE;
+      else if (strcmp(var.value, "run_interpreter") == 0)
+         psx_dynarec = DYNAREC_RUN_INTERPRETER;
       else
-         psx_dynarec = false;
+         psx_dynarec = DYNAREC_DISABLED;
    }
    else
-      psx_dynarec = true;
+      psx_dynarec = DYNAREC_EXECUTE;
 #endif
 
    var.key = BEETLE_OPT(cpu_freq_scale);
@@ -3801,7 +3805,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
 #ifdef HAVE_LIGHTREC
       /* Do not run lightrec if firmware is not found, recompiling garbage is bad*/
-      psx_dynarec = false;
+      psx_dynarec = DYNAREC_DISABLED;
 #endif
    }
 

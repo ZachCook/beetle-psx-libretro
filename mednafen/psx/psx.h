@@ -107,7 +107,8 @@ extern MultiAccessSizeMem<1024, uint32_t, false> *ScratchRAM;
 extern MultiAccessSizeMem<65536, uint32_t, false> *PIOMem;
 
 #ifdef HAVE_LIGHTREC
-extern bool psx_dynarec;
+enum DYNAREC {DYNAREC_DISABLED, DYNAREC_EXECUTE, DYNAREC_EXECUTE_ONE, DYNAREC_RUN_INTERPRETER};
+extern enum DYNAREC psx_dynarec;
 #endif
 
 #define OVERCLOCK_SHIFT 8

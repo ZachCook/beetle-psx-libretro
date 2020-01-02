@@ -2682,7 +2682,7 @@ pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
 pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode, bool ILHMode)
 {
 #ifdef HAVE_LIGHTREC
- if(psx_dynarec)
+ if(psx_dynarec != DYNAREC_DISABLED)
   return(lightrec_plugin_execute(timestamp_in));
 #endif
  if(CPUHook || ADDBT)
@@ -3460,10 +3460,12 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 		lightrec_restore_registers(lightrec_state, GPR);
 		lightrec_reset_cycle_count(lightrec_state, timestamp);
 
-//		PC = lightrec_execute(lightrec_state,
-//				PC, next_event_ts);
-//		PC = lightrec_run_interpreter(lightrec_state,PC);
-		PC = lightrec_execute_one(lightrec_state,PC);
+		if (psx_dynarec == DYNAREC_EXECUTE)
+			PC = lightrec_execute(lightrec_state, PC, next_event_ts);
+		else if (psx_dynarec == DYNAREC_EXECUTE_ONE)
+			PC = lightrec_execute_one(lightrec_state,PC);
+		else if (psx_dynarec == DYNAREC_RUN_INTERPRETER)
+			PC = lightrec_run_interpreter(lightrec_state,PC);
 
 		timestamp = lightrec_current_cycle_count(
 				lightrec_state);
