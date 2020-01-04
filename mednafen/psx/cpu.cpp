@@ -38,6 +38,8 @@
  #include <stdio.h>
  #include <unistd.h>
  #include <signal.h>
+
+enum DYNAREC prev_dynarec;
 #endif
 
 extern bool psx_gte_overclock;
@@ -3411,6 +3413,8 @@ struct lightrec_ops PS_CPU::ops = {
 
 int PS_CPU::lightrec_plugin_init()
 {
+	prev_dynarec = psx_dynarec;
+
 	if(lightrec_state)
 		lightrec_destroy(lightrec_state);
 
@@ -3444,6 +3448,11 @@ int PS_CPU::lightrec_plugin_init()
 
 int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 {
+	if(psx_dynarec != prev_dynarec){
+		lightrec_invalidate_all(lightrec_state);
+		prev_dynarec = psx_dynarec;
+	}
+
 	uint32_t PC;
 	uint32_t new_PC;
 	uint32_t new_PC_mask;
