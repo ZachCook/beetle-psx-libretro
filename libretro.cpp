@@ -383,6 +383,38 @@ MultiAccessSizeMem<65536, uint32, false> *PIOMem = NULL;
 MultiAccessSizeMem<2048 * 1024, uint32, false> *MainRAM = NULL;
 MultiAccessSizeMem<1024, uint32, false> *ScratchRAM = NULL;
 
+#ifdef HAVE_LIGHTREC
+/* Size of Expansion 1 (8MB) */
+#define PSX_EXPANSION1_SIZE        0x800000U
+/* Base address of Expansion 1 */
+#define PSX_EXPANSION1_BASE        0x1F000000U
+
+/* Mednafen splits the expansion in two buffers (PIOMem and TextMem). That's not
+ * super convenient for us so I'm going to copy both of them in one contiguous
+ * buffer */
+const uint8_t *PSX_LoadExpansion1(void) {
+   static uint8_t *expansion1 = NULL;
+
+   if (PIOMem == NULL) {
+      /* No expansion loaded */
+      return NULL;
+   }
+
+   if (expansion1 == NULL) {
+      expansion1 = new uint8_t[PSX_EXPANSION1_SIZE];
+   }
+
+   /* Let's read 32bits at a time to speed things up a bit */
+   uint32_t *p = reinterpret_cast<uint32_t *>(expansion1);
+
+   for (unsigned i = 0; i < PSX_EXPANSION1_SIZE / 4; i++) {
+      p[i] = PSX_MemPeek32(PSX_EXPANSION1_BASE + i * 4);
+   }
+
+   return expansion1;
+}
+#endif
+
 static uint32_t TextMem_Start;
 static std::vector<uint8> TextMem;
 
@@ -2165,6 +2197,11 @@ static bool LoadEXE(const uint8_t *data, const uint32_t size, bool ignore_pcsp =
    po += 4;
    MDFN_en32lsb<false>(po, 0); // NOP(kinda)
    po += 4;
+
+#ifdef HAVE_LIGHTREC
+   /* Reload Expansion1 copy */
+   PSX_LoadExpansion1();
+#endif
 
    return true;
 }

@@ -147,6 +147,8 @@ void PS_CPU::SetHalt(bool status)
  RecalcIPCache();
 }
 
+const uint8_t *PSX_LoadExpansion1(void);
+
 void PS_CPU::Power(void)
 {
  assert(sizeof(ICache) == sizeof(ICache_Bulk));
@@ -3353,7 +3355,7 @@ struct lightrec_mem_map PS_CPU::lightrec_map[] = {
 	[PSX_MAP_PARALLEL_PORT] = {
 		/* Parallel port */
 		.pc = 0x1f000000,
-		.length = 0x10000,
+		.length = 0x800000,
 	},
 	[PSX_MAP_HW_REGISTERS] = {
 		/* Hardware registers */
@@ -3421,7 +3423,7 @@ int PS_CPU::lightrec_plugin_init()
 	uint8_t *psxM = (uint8_t *) MainRAM->data8;
 	uint8_t *psxR = (uint8_t *) BIOSROM->data8;
 	uint8_t *psxH = (uint8_t *) ScratchRAM->data8;
-	uint8_t *psxP = (uint8_t *) PIOMem->data8;
+	uint8_t *psxP = (uint8_t *) PSX_LoadExpansion1();
 
 	lightrec_map[PSX_MAP_KERNEL_USER_RAM].address = psxM;
 #if defined(HAVE_SHM) || defined(HAVE_WIN_SHM) || defined(HAVE_ASHMEM)
