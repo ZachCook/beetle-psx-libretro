@@ -857,10 +857,18 @@ int lightrec_compile_block(struct block *block)
 			pr_debug("Branch at offset 0x%x will be emulated\n",
 				 elm->offset << 2);
 			lightrec_emit_eob(block, elm, next_pc);
+			skip_next = !(elm->flags & LIGHTREC_NO_DS);
 		} else if (elm->opcode) {
 			lightrec_rec_opcode(block, elm, next_pc);
 			skip_next = has_delay_slot(elm->c) &&
 				!(elm->flags & LIGHTREC_NO_DS);
+#if _WIN32
+			/* FIXME: GNU Lightning on Windows seems to use our
+			 * mapped registers as temporaries. Until the actual bug
+			 * is found and fixed, unconditionally mark our
+			 * registers as live here. */
+			lightrec_regcache_mark_live(reg_cache, _jit);
+#endif
 		}
 	}
 
@@ -1180,8 +1188,7 @@ void lightrec_invalidate(struct lightrec_state *state, u32 addr, u32 len)
 
 void lightrec_invalidate_all(struct lightrec_state *state)
 {
-	memset(state->code_lut, 0, sizeof(*state->code_lut) *
-	       state->maps[PSX_MAP_KERNEL_USER_RAM].length >> 2);
+	memset(state->code_lut, 0, sizeof(*state->code_lut) * CODE_LUT_SIZE);
 }
 
 void lightrec_set_exit_flags(struct lightrec_state *state, u32 flags)
