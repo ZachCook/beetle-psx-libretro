@@ -40,6 +40,7 @@
  #include <signal.h>
 
 enum DYNAREC prev_dynarec;
+static struct lightrec_state *lightrec_state;
 #endif
 
 extern bool psx_gte_overclock;
@@ -244,6 +245,10 @@ int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
 
  if(load)
  {
+#ifdef HAVE_LIGHTREC
+  if(psx_dynarec != DYNAREC_DISABLED)
+   lightrec_invalidate_all(lightrec_state);
+#endif
   if(load < 0x939)
   {
    //
@@ -3059,8 +3064,6 @@ void PS_CPU::CheckBreakpoints(void (*callback)(bool write, uint32 address, unsig
 
 #ifdef HAVE_LIGHTREC
 #define ARRAY_SIZE(x) (sizeof(x) ? sizeof(x) / sizeof((x)[0]) : 0)
-
-static struct lightrec_state *lightrec_state;
 
 static char *name = (char*) "beetle_psx_libretro";
 
