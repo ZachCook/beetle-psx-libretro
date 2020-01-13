@@ -75,9 +75,12 @@ ifeq ($(SET_HAVE_HW), 1)
    TARGET_NAME := mednafen_psx_hw
 endif
 
-ifeq ($(LIGHTREC_DEBUG), 1)
-   FLAGS += -DLIGHTREC_DEBUG
+ifneq ($(LIGHTREC_DEBUG), 0)
    DEBUG = 1
+   FLAGS += -DLIGHTREC_DEBUG
+   ifeq ($(LIGHTREC_DEBUG), 2)
+      FLAGS += -DLIGHTREC_VERY_DEBUG
+   endif
 endif
 
 # Unix

@@ -678,7 +678,9 @@ pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
 
  BACKING_TO_ACTIVE;
 
- u32 old_pc = PC;
+#if defined(HAVE_LIGHTREC) && defined(LIGHTREC_DEBUG)
+ u32 oldpc = PC;
+#endif
 
  do
  {
@@ -2670,11 +2672,10 @@ pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
 
    //printf("\n");
   }
-  if (timestamp >= 0 && PC != old_pc){
 #if defined(HAVE_LIGHTREC) && defined(LIGHTREC_DEBUG)
+  if (timestamp >= 0 && PC != oldpc)
      print_for_big_ass_debugger(timestamp, PC);
 #endif
-  }
  } while(MDFN_LIKELY(PSX_EventHandler(timestamp)));
 
  if(gte_ts_done > 0)
@@ -3067,13 +3068,7 @@ void PS_CPU::CheckBreakpoints(void (*callback)(bool write, uint32 address, unsig
 
 static char *name = (char*) "beetle_psx_libretro";
 
-bool use_lightrec_interpreter = false;
 #ifdef LIGHTREC_DEBUG
-bool lightrec_debug = true;
-#else
-bool lightrec_debug = false;
-#endif
-int lightrec_very_debug = 0;
 u32 lightrec_begin_cycles = 0;
 
 u32 hash_calculate(const void *buffer, u32 count)
@@ -3102,29 +3097,29 @@ void PS_CPU::print_for_big_ass_debugger(int32_t timestamp, uint32_t PC)
 	uint8_t *psxH = (uint8_t *) ScratchRAM->data8;
 
 	unsigned int i;
-	//extern int lightrec_very_debug;
 
 	printf("CYCLE 0x%08x PC 0x%08x", timestamp, PC);
-/*
-	if (lightrec_very_debug)
-		printf(" RAM 0x%08x SCRATCH 0x%08x HW 0x%08x",
-			hash_calculate(psxM, 0x200000),
-			hash_calculate(psxH, 0x400),
-			hash_calculate(psxH + 0x1000, 0x2000));
-*/
+
+#ifdef LIGHTREC_VERY_DEBUG
+	printf(" RAM 0x%08x SCRATCH 0x%08x",
+		hash_calculate(psxM, 0x200000),
+		hash_calculate(psxH, 0x400));
+#endif
+
 	printf(" CP0 0x%08x",
 		hash_calculate(&CP0.Regs,
 			sizeof(CP0.Regs)));
 
-/*
-	if (lightrec_very_debug)
-		for (i = 0; i < 33; i++)
-			printf(" GPR[%i] 0x%08x", i, GPR[i]);
-	else
-*/		printf(" GPR 0x%08x", hash_calculate(&GPR,
+#ifdef LIGHTREC_VERY_DEBUG
+	for (i = 0; i < 33; i++)
+		printf(" GPR[%i] 0x%08x", i, GPR[i]);
+#else
+		printf(" GPR 0x%08x", hash_calculate(&GPR,
 					sizeof(GPR)-1));
+#endif
 	printf("\n");
 }
+#endif /* LIGHTREC_DEBUG */
 
 u32 PS_CPU::cop_mfc(struct lightrec_state *state, u8 reg)
 {
@@ -3467,10 +3462,11 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 	BACKING_TO_ACTIVE;
 
 	u32 flags;
-	u32 old_pc = PC;
 
 	do {
-		old_pc = PC;
+#ifdef LIGHTREC_DEBUG
+		u32 oldpc = PC;
+#endif
 		lightrec_restore_registers(lightrec_state, GPR);
 		lightrec_reset_cycle_count(lightrec_state, timestamp);
 
@@ -3497,11 +3493,11 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 		if (flags & LIGHTREC_EXIT_SYSCALL)
 			PC = Exception(EXCEPTION_SYSCALL, PC, PC, 0);
 
-		if (lightrec_debug && timestamp >= lightrec_begin_cycles
-			&& PC != old_pc){
+#ifdef LIGHTREC_DEBUG
+		if (timestamp >= lightrec_begin_cycles && PC != oldpc){
 			print_for_big_ass_debugger(timestamp, PC);
 		}
-
+#endif
 		if ((CP0.SR & CP0.CAUSE & 0xFF00) && (CP0.SR & 1)) {
 			/* Handle software interrupts */
 			PC = Exception(EXCEPTION_INT, PC, PC, 0);
