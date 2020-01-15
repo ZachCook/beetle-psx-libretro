@@ -186,6 +186,7 @@ void PS_CPU::Power(void)
  memset(ScratchRAM->data8, 0, 1024);
 
 #ifdef HAVE_LIGHTREC
+ prev_dynarec = psx_dynarec;
  lightrec_plugin_init();
 #endif
 
@@ -247,7 +248,7 @@ int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
  {
 #ifdef HAVE_LIGHTREC
   if(psx_dynarec != DYNAREC_DISABLED)
-   lightrec_invalidate_all(lightrec_state);
+   lightrec_plugin_init();
 #endif
   if(load < 0x939)
   {
@@ -2694,7 +2695,7 @@ pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode
 #ifdef HAVE_LIGHTREC
  if(psx_dynarec != prev_dynarec) {
   if(psx_dynarec != DYNAREC_DISABLED)
-   lightrec_invalidate_all(lightrec_state);
+   lightrec_plugin_init();
   prev_dynarec = psx_dynarec;
  }
 
@@ -3419,15 +3420,20 @@ struct lightrec_ops PS_CPU::ops = {
 
 int PS_CPU::lightrec_plugin_init()
 {
-	prev_dynarec = psx_dynarec;
-
-	if(lightrec_state)
-		lightrec_destroy(lightrec_state);
-
 	uint8_t *psxM = (uint8_t *) MainRAM->data8;
 	uint8_t *psxR = (uint8_t *) BIOSROM->data8;
 	uint8_t *psxH = (uint8_t *) ScratchRAM->data8;
 	uint8_t *psxP = (uint8_t *) PSX_LoadExpansion1();
+
+	if(lightrec_state)
+		lightrec_destroy(lightrec_state);
+	else{
+		fprintf(stderr, "M=0x%lx, P=0x%lx, R=0x%lx, H=0x%lx\n",
+			(uintptr_t) psxM,
+			(uintptr_t) psxP,
+			(uintptr_t) psxR,
+			(uintptr_t) psxH);
+	}
 
 	lightrec_map[PSX_MAP_KERNEL_USER_RAM].address = psxM;
 #if defined(HAVE_SHM) || defined(HAVE_WIN_SHM) || defined(HAVE_ASHMEM)
@@ -3442,12 +3448,6 @@ int PS_CPU::lightrec_plugin_init()
 	lightrec_state = lightrec_init(name,
 			lightrec_map, ARRAY_SIZE(lightrec_map),
 			&ops);
-
-	fprintf(stderr, "M=0x%lx, P=0x%lx, R=0x%lx, H=0x%lx\n",
-			(uintptr_t) psxM,
-			(uintptr_t) psxP,
-			(uintptr_t) psxR,
-			(uintptr_t) psxH);
 
 	return 0;
 }
