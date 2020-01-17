@@ -61,6 +61,7 @@
 
 #include "gte.h"
 #ifdef HAVE_LIGHTREC
+   #include <stdbool.h>
    #include <lightrec.h>
 #endif
 

@@ -40,6 +40,7 @@
  #include <signal.h>
 
 enum DYNAREC prev_dynarec;
+extern bool psx_dynarec_invalidate;
 static struct lightrec_state *lightrec_state;
 #endif
 
@@ -2699,6 +2700,8 @@ pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode
   prev_dynarec = psx_dynarec;
  }
 
+ lightrec_set_invalidate_mode(lightrec_state, psx_dynarec_invalidate);
+
  if(psx_dynarec != DYNAREC_DISABLED)
   return(lightrec_plugin_execute(timestamp_in));
 #endif
@@ -3448,6 +3451,8 @@ int PS_CPU::lightrec_plugin_init()
 	lightrec_state = lightrec_init(name,
 			lightrec_map, ARRAY_SIZE(lightrec_map),
 			&ops);
+
+	lightrec_set_invalidate_mode(lightrec_state, psx_dynarec_invalidate);
 
 	return 0;
 }

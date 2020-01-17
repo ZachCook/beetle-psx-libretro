@@ -289,6 +289,17 @@ struct retro_core_option_definition option_defs_us[] = {
       },
       "execute"
    },
+   {
+      BEETLE_OPT(dynarec_invalidate),
+      "Dynarec Code Invalidation",
+      "Some games require Full invalidation, some require DMA Only.",
+      {
+         { "full", "Full" },
+         { "dma",  "DMA Only (Slightly Faster)" },
+         { NULL, NULL },
+      },
+      "full"
+   },
 #endif
    {
       BEETLE_OPT(cpu_freq_scale),

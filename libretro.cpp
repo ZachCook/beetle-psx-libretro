@@ -81,6 +81,7 @@ int64 cd_slow_timeout = 8000; // microseconds
 
 #ifdef HAVE_LIGHTREC
 enum DYNAREC psx_dynarec;
+bool psx_dynarec_invalidate;
 uint8 *psx_mem;
 uint8 *psx_bios;
 uint8 *psx_scratch;
@@ -3080,6 +3081,18 @@ static void check_variables(bool startup)
    }
    else
       psx_dynarec = DYNAREC_EXECUTE;
+
+   var.key = BEETLE_OPT(dynarec_invalidate);
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "full") == 0)
+         psx_dynarec_invalidate = false;
+      else if (strcmp(var.value, "dma") == 0)
+         psx_dynarec_invalidate = true;
+   }
+   else
+      psx_dynarec_invalidate = false;
 #endif
 
    var.key = BEETLE_OPT(cpu_freq_scale);
