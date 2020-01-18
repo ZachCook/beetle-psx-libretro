@@ -48,6 +48,7 @@ enum
    CH_OT       = 6
 };
 
+extern int32_t EventCycles;
 static int32_t DMACycleCounter;
 
 static uint32_t DMAControl;         /* DMA control register */
@@ -104,7 +105,7 @@ void DMA_Power(void)
 
    memset(DMACH, 0, sizeof(DMACH));
 
-   DMACycleCounter = 128;
+   DMACycleCounter = EventCycles;
 
    DMAControl = 0;
    DMAIntControl = 0;
@@ -539,7 +540,7 @@ int32_t DMA_Update(const int32_t timestamp)
 
    DMACycleCounter -= clocks;
    while(DMACycleCounter <= 0)
-      DMACycleCounter += 128;
+      DMACycleCounter += EventCycles;
 
    RecalcHalt();
 

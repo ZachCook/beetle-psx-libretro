@@ -300,6 +300,24 @@ struct retro_core_option_definition option_defs_us[] = {
       },
       "full"
    },
+   {
+      BEETLE_OPT(dynarec_eventcycles),
+      "Dynarec DMA/GPU Event Cycles",
+      "How many cycles can pass in the dynarec before a GPU or DMA Update is forced, higher number will be faster, but also more likely to cause bugs or crashes",
+      {
+         { "128", "128 (Default)" },
+         { "160",  NULL },
+         { "192",  NULL },
+         { "224",  NULL },
+         { "256",  NULL },
+         { "320",  NULL },
+         { "384",  NULL },
+         { "448",  NULL },
+         { "512",  NULL },
+         { NULL, NULL },
+      },
+      "128"
+   },
 #endif
    {
       BEETLE_OPT(cpu_freq_scale),

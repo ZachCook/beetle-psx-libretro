@@ -82,12 +82,15 @@ int64 cd_slow_timeout = 8000; // microseconds
 #ifdef HAVE_LIGHTREC
 enum DYNAREC psx_dynarec;
 bool psx_dynarec_invalidate;
+uint32 EventCycles;
 uint8 *psx_mem;
 uint8 *psx_bios;
 uint8 *psx_scratch;
 #if defined(HAVE_SHM) && !defined(HAVE_ASHMEM)
 char shm_name[30];
 #endif
+#else
+uint32 EventCycles = 128;
 #endif
 
 #ifdef HAVE_ASHMEM
@@ -3093,6 +3096,15 @@ static void check_variables(bool startup)
    }
    else
       psx_dynarec_invalidate = false;
+
+   var.key = BEETLE_OPT(dynarec_eventcycles);
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+	EventCycles = atoi(var.value);
+   }
+   else
+      EventCycles = 128;
 #endif
 
    var.key = BEETLE_OPT(cpu_freq_scale);
