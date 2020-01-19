@@ -124,11 +124,12 @@ static bool is_branch_taken(const u32 *reg_cache, union code op)
 
 static u32 int_delay_slot(struct interpreter *inter, u32 pc, bool branch)
 {
-	u32 *reg_cache = inter->state->native_reg_cache;
+	struct lightrec_state *state = inter->state;
+	u32 *reg_cache = state->native_reg_cache;
 	struct opcode new_op, *op = inter->op->next;
 	union code op_next;
 	struct interpreter inter2 = {
-		.state = inter->state,
+		.state = state,
 		.cycles = inter->cycles,
 		.delay_slot = true,
 		.block = NULL,
@@ -138,6 +139,23 @@ static u32 int_delay_slot(struct interpreter *inter, u32 pc, bool branch)
 	     branch_taken;
 	u32 old_rs, new_rs, new_rt;
 	u32 next_pc, ds_next_pc;
+	u32 cause, epc;
+
+	if (op->i.op == OP_CP0 && op->r.rs == OP_CP0_RFE) {
+		/* When an IRQ happens, the PSX exception handlers (when done)
+		 * will jump back to the instruction that was executed right
+		 * before the IRQ, unless it was a GTE opcode; in that case, it
+		 * jumps to the instruction right after.
+		 * Since we will never handle the IRQ right after a GTE opcode,
+		 * but on branch boundaries, we need to adjust the return
+		 * address so that the GTE opcode is effectively executed.
+		 */
+		cause = (*state->ops.cop0_ops.cfc)(state, 13);
+		epc = (*state->ops.cop0_ops.cfc)(state, 14);
+
+		if (!(cause & 0x7c) && epc == pc - 4)
+			pc -= 4;
+	}
 
 	if (inter->delay_slot) {
 		/* The branch opcode was in a delay slot of another branch
@@ -156,7 +174,7 @@ static u32 int_delay_slot(struct interpreter *inter, u32 pc, bool branch)
 
 	if (branch) {
 		if (load_in_ds || branch_in_ds)
-			op_next = lightrec_read_opcode(inter->state, pc);
+			op_next = lightrec_read_opcode(state, pc);
 
 		if (load_in_ds) {
 			/* Verify that the next block actually reads the
@@ -254,7 +272,7 @@ static u32 int_delay_slot(struct interpreter *inter, u32 pc, bool branch)
 		/* If the branch at the target of the branch opcode is taken,
 		 * we execute its delay slot here, and jump to its target
 		 * address. */
-		op_next = lightrec_read_opcode(inter->state, pc + 4);
+		op_next = lightrec_read_opcode(state, pc + 4);
 
 		new_op.c = op_next;
 		new_op.flags = 0;
