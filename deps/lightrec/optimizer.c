@@ -598,7 +598,10 @@ static int lightrec_switch_delay_slots(struct block *block)
 		    op.opcode == 0)
 			continue;
 
-		if (prev && prev->c.i.op == OP_META_SYNC)
+		if (prev && has_delay_slot(prev->c))
+			continue;
+
+		if (prev && has_delay_slot(prev->c))
 			continue;
 
 		switch (list->i.op) {
@@ -898,10 +901,10 @@ static int lightrec_flag_stores(struct block *block)
 
 static bool is_mult32(const struct block *block, const struct opcode *op)
 {
-	const struct opcode *next;
+	const struct opcode *next, *last = NULL;
 	u32 offset;
 
-	for (op = op->next; op; op = op->next) {
+	for (op = op->next; op != last; op = op->next) {
 		switch (op->i.op) {
 		case OP_BEQ:
 		case OP_BNE:
@@ -918,10 +921,11 @@ static bool is_mult32(const struct block *block, const struct opcode *op)
 				for (next = op; next->offset != offset;
 				     next = next->next);
 
-				if (is_mult32(block, next))
-					continue;
-				else
+				if (!is_mult32(block, next))
 					return false;
+
+				last = next;
+				continue;
 			} else {
 				return false;
 			}
@@ -949,14 +953,15 @@ static bool is_mult32(const struct block *block, const struct opcode *op)
 		}
 	}
 
-	return false;
+	return last != NULL;
 }
 
 static int lightrec_flag_mults(struct block *block)
 {
-	struct opcode *list, *op;
+	struct opcode *list, *prev;
 
-	for (list = block->opcode_list; list; list = list->next) {
+	for (list = block->opcode_list, prev = NULL; list;
+	     prev = list, list = list->next) {
 		if (list->i.op != OP_SPECIAL)
 			continue;
 
@@ -967,6 +972,10 @@ static int lightrec_flag_mults(struct block *block)
 		default:
 			continue;
 		}
+
+		/* Don't support MULT(U) opcodes in delay slots */
+		if (prev && has_delay_slot(prev->c))
+			continue;
 
 		if (is_mult32(block, list)) {
 			pr_debug("Mark MULT(U) opcode at offset 0x%x as"
