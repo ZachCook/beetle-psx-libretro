@@ -229,7 +229,6 @@ bool load_in_delay_slot(union code op)
 		}
 
 		break;
-	case OP_LWC2:
 	case OP_LB:
 	case OP_LH:
 	case OP_LW:
@@ -511,8 +510,10 @@ static int lightrec_transform_ops(struct block *block)
 			pr_debug("Converting useless opcode 0x%08x to NOP\n",
 					list->opcode);
 			list->opcode = 0x0;
-			continue;
 		}
+
+		if (!list->opcode)
+			continue;
 
 		switch (list->i.op) {
 		/* Transform BEQ / BNE to BEQZ / BNEZ meta-opcodes if one of the
@@ -596,9 +597,6 @@ static int lightrec_switch_delay_slots(struct block *block)
 		if (!has_delay_slot(op) ||
 		    list->flags & (LIGHTREC_NO_DS | LIGHTREC_EMULATE_BRANCH) ||
 		    op.opcode == 0)
-			continue;
-
-		if (prev && has_delay_slot(prev->c))
 			continue;
 
 		if (prev && has_delay_slot(prev->c))
