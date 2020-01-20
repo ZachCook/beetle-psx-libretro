@@ -3435,7 +3435,7 @@ int PS_CPU::lightrec_plugin_init()
 	if(lightrec_state)
 		lightrec_destroy(lightrec_state);
 	else{
-		fprintf(stderr, "M=0x%lx, P=0x%lx, R=0x%lx, H=0x%lx\n",
+		fprintf(stderr, "Lightrec map addresses: M=0x%lx, P=0x%lx, R=0x%lx, H=0x%lx\n",
 			(uintptr_t) psxM,
 			(uintptr_t) psxP,
 			(uintptr_t) psxR,
@@ -3527,8 +3527,8 @@ void PS_CPU::lightrec_plugin_clear(u32 addr, u32 size)
 
 void PS_CPU::lightrec_plugin_shutdown(void)
 {
-	fprintf(stderr,"Lightrec Memory usage: %.2f MB, Average native instruction bytes per MIPS instruction byte: %.2f\n",
-		lightrec_get_total_mem_usage()/1000000.0,
+	fprintf(stderr,"Lightrec memory usage: %u KiB, average IPI: %.2f\n",
+		lightrec_get_total_mem_usage()/1024,
 		lightrec_get_average_ipi());
 	lightrec_destroy(lightrec_state);
 }
