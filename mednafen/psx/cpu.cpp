@@ -116,7 +116,8 @@ PS_CPU::PS_CPU()
 PS_CPU::~PS_CPU()
 {
 #ifdef HAVE_LIGHTREC
- lightrec_plugin_shutdown();
+ if (lightrec_state)
+  lightrec_plugin_shutdown();
 #endif
 
 }
@@ -188,7 +189,8 @@ void PS_CPU::Power(void)
 
 #ifdef HAVE_LIGHTREC
  prev_dynarec = psx_dynarec;
- lightrec_plugin_init();
+ if(psx_dynarec != DYNAREC_DISABLED)
+  lightrec_plugin_init();
 #endif
 
  PGXP_Init();
@@ -2695,12 +2697,14 @@ pscpu_timestamp_t PS_CPU::Run(pscpu_timestamp_t timestamp_in, bool BIOSPrintMode
 {
 #ifdef HAVE_LIGHTREC
  if(psx_dynarec != prev_dynarec) {
+  //init lightrec when changing dynarec option, cleans entire state if already running
   if(psx_dynarec != DYNAREC_DISABLED)
    lightrec_plugin_init();
   prev_dynarec = psx_dynarec;
  }
 
- lightrec_set_invalidate_mode(lightrec_state, psx_dynarec_invalidate);
+ if(lightrec_state)
+  lightrec_set_invalidate_mode(lightrec_state, psx_dynarec_invalidate);
 
  if(psx_dynarec != DYNAREC_DISABLED)
   return(lightrec_plugin_execute(timestamp_in));
@@ -3517,8 +3521,8 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 
 void PS_CPU::lightrec_plugin_clear(u32 addr, u32 size)
 {
-       /* size * 4: uses DMA units */
-       lightrec_invalidate(lightrec_state, addr, size * 4);
+	if (lightrec_state)	/* size * 4: uses DMA units */
+		lightrec_invalidate(lightrec_state, addr, size * 4);
 }
 
 void PS_CPU::lightrec_plugin_shutdown(void)
