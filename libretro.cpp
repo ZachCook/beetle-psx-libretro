@@ -1612,7 +1612,12 @@ int lightrec_init_mmap()
 #else
 	sprintf(shm_name, "/lightrec_memfd_%d", getpid());
 	int memfd = shm_open(shm_name,
-			 O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+			 O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+	if (memfd < 0) {
+		sprintf(shm_name, "/lightrec_memfd_%d_2", getpid());
+		memfd = shm_open(shm_name,
+			 O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+	}
 	if (memfd < 0) {
 		err = -errno;
 		fprintf(stderr, "Failed to create SHM: %d\n", err);
