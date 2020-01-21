@@ -133,7 +133,7 @@ class PS_CPU
  static uint32 IPCache;
  uint8 BDBT;
 
- uint8 ReadAbsorb[DU + 1];
+ uint8 ReadAbsorb[0x20 + 1];
  uint8 ReadAbsorbWhich;
  uint8 ReadFudge;
 
