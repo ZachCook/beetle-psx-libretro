@@ -250,8 +250,12 @@ int PS_CPU::StateAction(StateMem *sm, const unsigned load, const bool data_only)
  if(load)
  {
 #ifdef HAVE_LIGHTREC
-  if(psx_dynarec != DYNAREC_DISABLED)
-   lightrec_plugin_init();
+  if(psx_dynarec != DYNAREC_DISABLED) {
+   if(lightrec_state)
+    lightrec_invalidate_all(lightrec_state);
+   else
+    lightrec_plugin_init();
+  }
 #endif
   if(load < 0x939)
   {
