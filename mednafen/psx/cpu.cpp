@@ -168,7 +168,7 @@ void PS_CPU::Power(void)
  BACKED_new_PC = BACKED_PC + 4;
  BDBT = 0;
 
- BACKED_LDWhich = DU;
+ BACKED_LDWhich = 0x20;
  BACKED_LDValue = 0;
  LDAbsorb = 0;
  memset(ReadAbsorb, 0, sizeof(ReadAbsorb));
@@ -763,7 +763,7 @@ pscpu_timestamp_t PS_CPU::RunReal(pscpu_timestamp_t timestamp_in)
    else
     timestamp++;
 
-   #define DO_LDS() { GPR[LDWhich] = LDValue; ReadAbsorb[LDWhich] = LDAbsorb; ReadFudge = LDWhich; ReadAbsorbWhich |= LDWhich & 0x1F; LDWhich = DU; }
+   #define DO_LDS() { GPR[LDWhich] = LDValue; ReadAbsorb[LDWhich] = LDAbsorb; ReadFudge = LDWhich; ReadAbsorbWhich |= LDWhich & 0x1F; LDWhich = 0x20; }
    #define BEGIN_OPF(name) { op_##name:
    #define END_OPF goto OpDone; }
 
@@ -3129,11 +3129,12 @@ void PS_CPU::print_for_big_ass_debugger(int32_t timestamp, uint32_t PC)
 			sizeof(CP0.Regs)));
 
 #ifdef LIGHTREC_VERY_DEBUG
-	for (i = 0; i < 33; i++)
+	for (i = 0; i < 32; i++)
 		printf(" GPR[%i] 0x%08x", i, GPR[i]);
+	printf(" LO 0x%08x", LO);
+	printf(" HI 0x%08x", HI);
 #else
-		printf(" GPR 0x%08x", hash_calculate(&GPR,
-					sizeof(GPR)-1));
+	printf(" GPR 0x%08x", hash_calculate(&GPR, 32*sizeof(uint32_t)));
 #endif
 	printf("\n");
 }
@@ -3467,6 +3468,8 @@ int PS_CPU::lightrec_plugin_init()
 
 int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 {
+	uint32_t GPRL[34];
+
 	uint32_t PC;
 	uint32_t new_PC;
 	uint32_t new_PC_mask;
@@ -3481,7 +3484,10 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 #ifdef LIGHTREC_DEBUG
 		u32 oldpc = PC;
 #endif
-		lightrec_restore_registers(lightrec_state, GPR);
+		memcpy(&GPRL,&GPR,32*sizeof(uint32_t));
+		GPRL[32] = LO;
+		GPRL[33] = HI;
+		lightrec_restore_registers(lightrec_state, GPRL);
 		lightrec_reset_cycle_count(lightrec_state, timestamp);
 
 		if (psx_dynarec == DYNAREC_EXECUTE)
@@ -3494,7 +3500,10 @@ int32_t PS_CPU::lightrec_plugin_execute(int32_t timestamp)
 		timestamp = lightrec_current_cycle_count(
 				lightrec_state);
 
-		lightrec_dump_registers(lightrec_state, GPR);
+		lightrec_dump_registers(lightrec_state, GPRL);
+		memcpy(&GPR,&GPRL,32*sizeof(uint32_t));
+		LO = GPRL[32];
+		HI = GPRL[33];
 
 		flags = lightrec_exit_flags(lightrec_state);
 
