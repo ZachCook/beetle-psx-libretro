@@ -287,7 +287,7 @@ struct retro_core_option_definition option_defs_us[] = {
          { "run_interpreter", "Lightrec Interpreter" },
          { NULL, NULL },
       },
-      "execute"
+      "disabled"
    },
    {
       BEETLE_OPT(dynarec_invalidate),
@@ -303,7 +303,7 @@ struct retro_core_option_definition option_defs_us[] = {
    {
       BEETLE_OPT(dynarec_eventcycles),
       "Dynarec DMA/GPU Event Cycles",
-      "How many cycles can pass in the dynarec before a GPU or DMA Update is forced, higher number will be faster, but also more likely to cause bugs or crashes",
+      "How many cycles can pass in the CPU before a GPU or DMA Update is checked, higher number will be faster, but also more likely to cause bugs or crashes, has much less impact on beetle interpreter than dynarec",
       {
          { "128", "128 (Default)" },
          { "160",  NULL },
