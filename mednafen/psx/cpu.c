@@ -203,7 +203,7 @@ static int32_t CPU_RunReal(PS_CPU *self, int32_t timestamp_in);
 #ifdef HAVE_LIGHTREC
 static int     lightrec_plugin_init(PS_CPU *self);
 static int32_t lightrec_plugin_execute(PS_CPU *self, int32_t timestamp);
-static void    lightrec_plugin_shutdown(void);
+static bool    lightrec_plugin_shutdown(void);
 #endif
 
 /* Local typedef so the body matches the pre-conversion code. */
@@ -244,8 +244,7 @@ void CPU_Destroy(PS_CPU *self)
 {
    (void)self;
 #ifdef HAVE_LIGHTREC
-   if (lightrec_state)
-      lightrec_plugin_shutdown();
+   lightrec_plugin_shutdown();
 #endif
 }
 
@@ -2945,13 +2944,10 @@ int32_t CPU_Run(PS_CPU *self, int32_t timestamp_in)
        * cleans entire state if already running. */
       if (psx_dynarec == DYNAREC_DISABLED)
       {
-         /* Switching to (or already on) the interpreter. Only copy the GTE
-          * register bank back out of lightrec if lightrec was actually
-          * running - otherwise lightrec_regs is NULL (it's only set up by
-          * lightrec_plugin_init), and an option toggle while the interpreter
-          * has been the backend since boot would dereference NULL here (#968). */
-         if (lightrec_state)
-            GTE_SwitchRegisters(false,lightrec_regs->cp2d);
+         /* Switching to (or already on) the interpreter.
+          * lightrec_plugin_shutdown safely free's lightrec_state if it exists
+          * and switches to non-lightrec GTE registers */
+         lightrec_plugin_shutdown();
       }
       else
          lightrec_plugin_init(self);
@@ -3645,22 +3641,20 @@ static int lightrec_plugin_init(PS_CPU *self)
 
    (void)self;
 
-   if (lightrec_state)
+   //Shutdown old state if it exists, otherwise log map addresses.
+   if(!lightrec_plugin_shutdown())
    {
-      GTE_SwitchRegisters(false,lightrec_regs->cp2d);
-      lightrec_destroy(lightrec_state);
-   }
-   else
-   {
-      log_cb(RETRO_LOG_INFO, "Lightrec map addresses: M=0x%lx, P=0x%lx, R=0x%lx, H=0x%lx\n",
-            (uintptr_t) psxM,
-            (uintptr_t) psxP,
-            (uintptr_t) psxR,
-            (uintptr_t) psxH);
+      log_cb(RETRO_LOG_INFO,
+             "Lightrec map addresses: M=0x%lx, P=0x%lx, R=0x%lx, H=0x%lx\n",
+             (uintptr_t) psxM,
+             (uintptr_t) psxP,
+             (uintptr_t) psxR,
+             (uintptr_t) psxH);
 
       if(lightrec_codebuffer)
       {
-         log_cb(RETRO_LOG_INFO, "Lightrec codebuffer address: 0x%lx, size: %uMB (0x%08x)\n",
+         log_cb(RETRO_LOG_INFO,
+                "Lightrec codebuffer address: 0x%lx, size: %uMB (0x%08x)\n",
                 lightrec_codebuffer, LIGHTREC_CODEBUFFER_SIZE/(1024*1024),
                 LIGHTREC_CODEBUFFER_SIZE);
       }
@@ -3859,9 +3853,23 @@ void CPU_LightrecClear_method(PS_CPU *self, uint32_t addr, uint32_t size)
       lightrec_invalidate(lightrec_state, addr, size * 4);
 }
 
-static void lightrec_plugin_shutdown(void)
+/* Safely free the lightrec_state if it exists
+ * returns true if a lightrec_state was destroyed, false otherwise */
+static bool lightrec_plugin_shutdown(void)
 {
-   lightrec_destroy(lightrec_state);
+   /* Shutdown old state when it exists, lightrec_state = NULL at the same time
+    * so we never call lightrec_destroy a second time on the same state since
+    * that is a classic double free bug. */
+   if(lightrec_state)
+   {
+      GTE_SwitchRegisters(false,lightrec_regs->cp2d);
+      lightrec_destroy(lightrec_state);
+      lightrec_state = NULL;
+      lightrec_regs = NULL;
+      return true;
+   }
+
+   return false;
 }
 
 #endif
